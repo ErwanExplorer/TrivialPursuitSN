@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Trivial Poursuit Informatique</title>
+  <link rel="icon" type="image/png" href="http://localhost:3000/public/assets/images/icon.png">
+  <style>
+    /* Styles CSS */
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+    }
+    h1 {
+      margin-bottom: 20px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      margin: 10px;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+    li {
+      padding: 10px;
+      margin: 10px;
+      border: 1px solid #ccc;
+      cursor: pointer;
+    }
+    li:hover {
+      background-color: #f4f4f4;
+    }
+    .result {
+      margin-top: 20px;
+    }
+    #scoreBoard {
+      margin-top: 20px;
+    }
+    #waitingRoom {
+      display: block;
+    }
+    #quizContainer {
+      display: none;
+    }
+    #startGameButton:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+    #startGameButton {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+    }
+    #startGameButton:hover {
+      background-color: #45a049;
+    }
+    #startGameButton:active {
+      background-color: #3e8e41;
+    }
+    #startGameButton:focus {
+      outline: none;
+    }
+    .question{
+      font-size: 40px;
+      font-style: bold;
+    }
+    .answers {
+      margin-top: 20px;
+      font-size: 20px;
+    }
+    .eventaudio{
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      width: 100%;
+    }
+    .btn{
+      display: block;
+      text-align: center;
+      text-decoration: none;
+      font-weight: 700;
+      color: #AAA;
+      font-size: 4rem;
+      line-height: 2em;
+    }
+    .btn.active{
+      color: #000;
+    }
+  </style>
+</head>
+<body>
+  <h1>Trivial Poursuit pour les Système Numérique</h1>
+  <h2>Niveau Première et Terminal</h2>
+  <div id="waitingRoom">
+    <p>En attente d'autres joueurs...</p>
+    <button id="startGameButton" disabled>Démarrer le jeu</button>
+  </div>
+  <div id="quizContainer" style="display: none;">
+    <p class="question"></p>
+    <ul class="answers"></ul>
+  </div>
+
+  <p class="result"></p>
+  <div id="scoreBoard"></div>
+
+  <iframe style="border-radius:12px" src="https://open.spotify.com/embed/playlist/6tn1mS5GggqxQeC75SYx7Q?utm_source=generator&theme=0" width="60%" height="152" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+
+  <div class="eventaudio">
+    <audio id="audio" src="http://localhost:3000/public/assets/music/music.mp3" preload="auto"></audio>
+    <div>
+      <a href="javascript:voif(0)" onclick="changeState(0)" class="btn">Play</a>
+      <a href="javascript:voif(0)" onclick="changeState(1)" class="btn">Pause
+      <a href="javascript:voif(0)" onclick="changeState(2)" class="btn active">Stop</a>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const questions = [
+      {
+        question: "Quelle est la balise HTML pour créer un lien hypertexte ?",
+        answers: ["<a>", "<link>", "<href>", "<url>"],
+        correctAnswer: 0
+      },
+      {
+        question: "Quelle propriété CSS est utilisée pour changer la couleur de fond d'un élément ?",
+        answers: ["color", "background-color", "bg-color", "background"],
+        correctAnswer: 1
+      },
+      {
+        question: "Quel mot-clé JavaScript est utilisé pour déclarer une variable ?",
+        answers: ["var", "let", "const", "Toutes les réponses sont correctes"],
+        correctAnswer: 3
+      },
+      {
+        question: "Quelle est la sortie de ce code JavaScript : console.log(2 + '2') ?",
+        answers: ["4", "22", "NaN", "undefined"],
+        correctAnswer: 1
+      },
+      {
+        question: "Quelle est la fonction principale d'un microcontrôleur Arduino ?",
+        answers: ["Exécuter des programmes", "Convertir des signaux analogiques en numériques", "Gérer l'affichage", "Contrôler le stockage"],
+        correctAnswer: 0
+      },
+      {
+        question: "Quelle est la différence entre une adresse IP et une adresse MAC ?",
+        answers: ["L'adresse IP identifie un réseau, l'adresse MAC identifie un appareil", "L'adresse IP identifie un appareil, l'adresse MAC identifie un réseau", "Il n'y a pas de différence", "L'adresse IP est utilisée pour l'Internet, l'adresse MAC pour les réseaux locaux"],
+        correctAnswer: 0
+      },
+      {
+        question: "Si une adresse IP est 192.168.1.0/24, quelle est l'adresse de broadcast du sous-réseau ?",
+        answers: ["192.168.1.255", "192.168.1.0", "192.168.0.255", "192.168.1.1"],
+        correctAnswer: 0
+      }
+    ];
+    
+    //AUDIO
+    function changeState(x) {
+      let btns = document.querySelectorAll(".btn");
+      let audio = document.querySelector("#audio");
+      for (let i = 0; i < btns.length; i++) {
+        btns[i].classList.remove("active");
+      }
+      btns[x].classList.add("active");
+
+      if(x == 0){
+        audio.play();
+      }
+      if(x == 1){
+        audio.pause();
+      }
+      if(x == 2){
+        audio.pause();
+        audio.currentTime = 0;
+      }
+      
+    }
+      
+
+    //JEUX
+    let currentQuestion = 0;
+    const questionElement = document.querySelector(".question");
+    const answersElement = document.querySelector(".answers");
+    const resultElement = document.querySelector(".result");
+    const scoreBoardElement = document.querySelector("#scoreBoard");
+    const waitingRoomElement = document.querySelector("#waitingRoom");
+    const quizContainerElement = document.querySelector("#quizContainer");
+    const startGameButton = document.querySelector("#startGameButton");
+
+    // Demander le pseudo à l'utilisateur
+    const username = prompt("Veuillez entrer votre pseudo :");
+
+    // Fonction à exécuter après le chargement de Socket.IO
+    function initSocketIO() {
+      const socket = io();
+      let playerScores = {};
+      let gameStarted = false;
+
+      socket.emit('newPlayer', username);
+
+      // Gérer les événements Socket.IO
+      socket.on('playerScore', (data) => {
+        playerScores = data.playerScores;
+        updateScoreBoard();
+        updateStartGameButton();
+      });
+
+      socket.on('nextQuestion', (data) => {
+        currentQuestion = data.currentQuestion;
+        showQuestion();
+      });
+
+      socket.on('startGame', () => {
+        gameStarted = true;
+        waitingRoomElement.style.display = "none";
+        quizContainerElement.style.display = "block";
+        showQuestion();
+      });
+
+      socket.on('showWinner', (data) => {
+        const winner = data.winner;
+        resultElement.textContent = `Le gagnant est : ${winner}`;
+      });
+
+      function showQuestion() {
+        // Afficher la question et les choix de réponses si tous les joueurs sont prêts
+        if (gameStarted) {
+          const question = questions[currentQuestion];
+          questionElement.textContent = question.question;
+          answersElement.innerHTML = "";
+          for (let i = 0; i < question.answers.length; i++) {
+            const li = document.createElement("li");
+            li.textContent = question.answers[i];
+            li.addEventListener('click', () => {
+              checkAnswer(i);
+            });
+            answersElement.appendChild(li);
+          }
+        }
+      }
+
+      function checkAnswer(selectedAnswer) {
+      const question = questions[currentQuestion];
+      const isCorrect = selectedAnswer === question.correctAnswer;
+      resultElement.textContent = isCorrect ? "Correct !" : "Incorrect. La bonne réponse est : " + question.answers[question.correctAnswer];
+
+      // Envoyer le résultat au serveur
+      socket.emit('playerAnswer', { username, isCorrect });
+
+      currentQuestion++;
+      if (currentQuestion < questions.length) {
+        setTimeout(() => {
+          socket.emit('nextQuestion', currentQuestion);
+        }, 2000);
+      } else {
+        // Toutes les questions ont été répondues, afficher le gagnant
+        socket.emit('gameFinished');
+      }
+    }
+
+      function updateScoreBoard() {
+        scoreBoardElement.innerHTML = "";
+        const scoresList = document.createElement("ul");
+        for (const [player, score] of Object.entries(playerScores)) {
+          const li = document.createElement("li");
+          li.textContent = `${player}: ${score}`;
+          scoresList.appendChild(li);
+        }
+        scoreBoardElement.appendChild(scoresList);
+      }
+
+      function updateStartGameButton() {
+        const playerCount = Object.keys(playerScores).length;
+        startGameButton.disabled = playerCount < 2;
+      }
+
+      startGameButton.addEventListener('click', () => {
+        console.log('startGameButton clicked');
+        socket.emit('startGame');
+      });
+    }
+
+    // Appeler la fonction après le chargement de Socket.IO
+    document.addEventListener('DOMContentLoaded', initSocketIO);
+  </script>
+</body>
+</html>
